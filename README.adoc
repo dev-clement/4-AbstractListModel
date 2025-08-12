@@ -1,0 +1,111 @@
+= QAbstractListModel concept
+In this article, we'll see some theory regarding the QAbstractListModel class and the concept of model in QML.
+
+:toc:
+:sectnums:
+
+== Introduction
+Cpp models are part of the **M**odel **V**iew **A**rchitecture in Qt QML and this design is made in order to separate the model and the view that is using this model.
+
+That means: We separate the way we store the data from the way we display it to the users.
+
+=== Model
+Model is creating a separations between view and how the data are stored in the machine (database, web, file, so on...), this is the data put in the machine you retrieve data from.
+
+=== View
+View on the other hand, will take the data coming from the model in order to show it to the user.
+
+IMPORTANT: Thanks to this design, View doesn't need to know how the data are stored and handled, it just need to know how to fetch it from the model. So the model will define a shared interface between model and view for the view to see the data
+
+== QAbstractListModel
+The class named `QAbstractListModel` will then be the object that provides a standard interface for models that represents their data on a non-hierarchical sequence of items. It isn't used directly, but must be subclassed.
+
+Since the model provides a more specialized interface than the link:https://doc.qt.io/qt-6/qabstractitemmodel.html[QAbstractItemModel] it isn't suitable for use with tree views for instance; you'll need to subclass the link:https://doc.qt.io/qt-6/qabstractitemmodel.html[QAbstractItemModel] if you want to provide a model for that purpose.
+
+In case of using a number of list models to manage data, it might be more appropriate to subclass link:https://doc.qt.io/qt-6/qabstracttablemodel.html[QAbstractTableModel] instead.
+
+Simple  models can be created by subclassing this class and implementing the minimum number of required functions. For example, we can implement a simple read-only link:https://doc.qt.io/qt-6/qstringlist.html[QStringList]-based model that provides a list of strings to a link:https://doc.qt.io/qt-6/qlistview.html[QListView] widget. In such as case, we only need to implement the link:https://doc.qt.io/qt-6/qabstractitemmodel.html#rowCount[rowCount()] method to return the number of items in the list, and the link:https://doc.qt.io/qt-6/qabstractitemmodel.html#data[data()] function to retrieve the items from the list.
+
+== Pro of using QAbstractItemModel
+You can create moel whithout making use of the `QAbstractXXXModel`, however:
+
+. This is the most efficient way to handle a huge data set that change frequently
+. The Cpp API is robust and well tested
+. Once something is changed in the model, only the specific item are affected in the view
+. Once you remove or add an item in the odel, only the specific items are affected in the view.
+
+IMPORTANT: Using this model types will let you handle the object whithout making use of the context property. That means you should use model when you have a non-trivial data.
+
+== Creating project using QAbstractListModel
+As we already do, we are going to create a project that use a `Person` class. The addition to this is that the `Person` class will be contained inside another class that inherits from the `QAbstractListModel`
+
+=== Creating the `PersonModel`
+So the class we are going to create is a `PersonModel` class that inherits from the `QAbstractListModel`:
+
+NOTE: This class has to contains a `Q_OBJECT` macro in order to be part with the moc compiler, and also have the `QML_ELEMENT` macro in order for it to be consumed by the QML file.
+
+=== Creating the Person class
+This class is the model on its own, that means, the `PersonModel` will contains a list of `Person` pointer that is going to be used by the QML engine to display the information inside the container of your choice. So here is what the class looks like:
+
+```cpp
+class Person : public QObject
+{
+    Q_OBJECT
+    Q_PROPERTY(QString names READ names WRITE setNames NOTIFY namesChanged)
+    Q_PROPERTY(QString favoriteColor READ favoriteColor WRITE setFavoriteColor NOTIFY favoriteColorChanged)
+    Q_PROPERTY(int age READ age WRITE setAge NOTIFY ageChanged)
+public:
+    explicit Person(QObject *parent = nullptr);
+    Person(const QString &o_names, const QString &o_favoriteColor, int i_age, QObject *po_parent = nullptr);
+
+    QString names() const;
+    QString favoriteColor() const;
+    int age() const;
+    void setNames(const QString &o_names);
+    void setFavoriteColor(const QString &o_favoriteColor);
+    void setAge(int i_age);
+
+signals:
+    void namesChanged(const QString &o_name);
+    void favoriteColorChanged(const QString &o_favoriteColor);
+    void ageChanged(int i_age);
+
+private:
+    QString _o_names;
+    QString _o_favoriteColor;
+    int     _i_age;
+};
+```
+
+NOTE: As you can see, this class contains several properties, one for name, favorite color and age. No more things instead of containing these properties.
+
+The big part of the code regarding the persons is done inside of the `QAbstractListModel` that is going to add, remove and set the data to the container from the QML side of the app.
+
+=== Using person model in QML
+As we've created a `PersonModel` that inherits from the `QAbstractListModel`, we can use it inside of our QML engine more precisely inside of a container (let's say a `ListView`):
+
+```qml
+Window {
+    id: rootId
+    width: 640
+    height: 480
+    visible: true
+    title: qsTr("Abstract List model")
+
+    ColumnLayout {
+        anchors.fill: parent
+
+        PersonModel {
+            id: modelId
+        }
+
+        ListView {
+            id: listViewId
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            model: modelId
+```
+
+NOTE: As you can see in the snippet above, we create a `PersonModel` with an idea that's going to be used inside of the `ListView{}` model.
+
+IMPORTANT: delegate on the other hand will use the properties we defined in the model.
